@@ -21,7 +21,15 @@ The application `scanme` installs under the menu categories Multimedia and Offic
 
 When accessed from the menu (best), a properties window is used to invoke the application and a terminal provides backgorund messages just in case something goes wrong.  Post processing of files permits the scanned image or document to have metadata attached to it.  This metadata has default settings that the user can accept or change.  The properties window also permits multiple, single or single scan with view to be invoked.  The view will use a pdf viewer, as scans are .tiff files and these are converted to optimized .pdf.  
 
-![View of Properties Window](scanme-screenshot.png)  
+![View of Properties Window](screenshots/scanme-screenshot_0.png)  
+
+After selecting the scan type (ie. Single, Single View or Multiple), we pause and get ready to start:  
+
+![View of Properties Window](screenshots/scanme-screenshot_1.png)  
+
+The final step of Single View scan type is shown below, using the Acrobat reader to view the file:  
+
+![View of Properties Window](screenshots/scanme-screenshot_2.png)  
 
 From the terminal, ScanMe can be invoked as follows:  
 

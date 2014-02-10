@@ -143,11 +143,11 @@ then
       --width=450 \
       --justify=fill \
       --image="dialog-error" \
-      --button="gtk-close:1" \
+      --button="Exit:0" \
       --title="$name: Failure" \
       --text "No scanned document was created. Could be a cancelled transaction, an empty feeder, a badly placed document or a scanner with no power." \
       2>/dev/null
-    log "Execution of '$name' has failed, exiting" pause
+    log "Execution of '$name' has failed, exiting" die 1
   else
     log "Execution of '$name' has completed, exiting" pause
   fi
@@ -193,7 +193,7 @@ do
     return 0
   fi
   sleep 1
-  ((++count))
+  (( ++count ))
 done
 return 1
 }
@@ -206,11 +206,11 @@ local cache
 local fmcache
 fmcache="$( yad \
   --form \
-  --borders=15 \
+  --borders=20 \
   --buttons-layout="spread" \
   --button="Multiple:3" \
-  --button="Single:2" \
-  --button="Single View:1" \
+  --button="Single View:2" \
+  --button="Single:1" \
   --button="Exit:0" \
   --field "File Name" \
   --field "Author" \
@@ -222,9 +222,8 @@ fmcache="$( yad \
   "$pdf_title" \
   "$pdf_subject" \
   "$pdf_keys" \
-  --window-icon="$scanmepng" \
   --title "$name: File and PDF Attributes" \
-  --width 450 \
+  --width 475 \
   2>/dev/null
 )"
 action=$?
@@ -295,15 +294,16 @@ pdfpath="${imagepath%.*}".pdf
 # Ensure the scanner is ready and then scan the image.
 function scan_image(){
 yad \
-  --borders=15 \
+  --width=450 \
+  --borders=20 \
   --justify=fill \
-  --image="dialog-question" \
-  --button="gtk-ok:0" \
-  --button="gtk-close:1" \
-  --title="$name: Last Check and Go" \
-  --text "Are document(s) in the feeder and is the scanner ready?" \
+  --image="dialog-warning" \
+  --button="Continue:1" \
+  --button="Finish:0" \
+  --title="$name: Get Ready" \
+  --text "Get ready to scan. Check that document(s) are placed in the feeder and the scanner is ready." \
   2>/dev/null
-if [[ $? != 0  ]]
+if [[ $? == 0  ]]
 then
   log "Cancelled scanning (user termination)" die 1
 else
@@ -324,13 +324,14 @@ else
   # 2. tee to file and progress meter.
   tee "$imagepath" | \
     yad \
-    --progress \
-    --borders=15 \
-    --pulsate \
-    --title="$name: Scanning Progress" \
-    --text="Scanning to $imagepath" \
     --width=450 \
+    --progress \
+    --borders=20 \
+    --pulsate \
+    --title="$name: Scanning-In-Progress" \
+    --text="Scanning to ${imagename}${imageextn}" \
     --auto-close \
+    --no-buttons \
     2>/dev/null &&
 
   # 3. Check the failure states.
@@ -402,6 +403,7 @@ done
 
 ## get_action 'action'
 
+# get the action set by the attributes dialog.
 function get_action(){
 # Command line options.
 case "$action" in
