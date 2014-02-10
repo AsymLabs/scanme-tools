@@ -60,20 +60,20 @@ readonly scanmesvgfile='/usr/share/pixmaps/scansh-red.svg'
 #
 #   awk           (awk)
 #   sed           (sed)
-#   mktemp        (mktemp)          sometimes mktemp is not available.
+#   coreutils     (mktemp)          sometimes mktemp is not available.
 #   yad           (yad)             instead of Zenity,  advantageous.
 #   cups          (cupstestppd)
 #   sane          (scanimage)
 #   hplip         (hp-check)        this is printer/scanner specific.
 #   hpoj          (ptal-devid)      this is printer/scanner specific.
-#   tiff2pdf      (tiff2pdf)
+#   libtiff      (tiff2pdf)
 #   ghostscript   (gs)
 #   evince        (evince)
 
 declare -A packages
 packages[awk]='awk'
 packages[sed]='sed'
-packages[mktemp]='mktemp'
+packages[coreutils]='mktemp'
 packages[yad]='yad'
 packages[cups]='cupstestppd'
 packages[sane]='scanimage'
