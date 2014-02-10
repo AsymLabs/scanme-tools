@@ -79,7 +79,7 @@ packages[cups]='cupstestppd'
 packages[sane]='scanimage'
 packages[hplip]='hp-check'
 packages[hpoj]='ptal-devid'
-packages[tiff2pdf]='tiff2pdf'
+packages[libtiff]='tiff2pdf'
 packages[ghostscript]='gs'
 
 ## FUNCTIONS
