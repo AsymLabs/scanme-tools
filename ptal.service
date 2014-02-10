@@ -1,0 +1,13 @@
+[Unit]
+Description=HPOJ Service
+Before=cups.service
+
+[Service]
+Type=forking
+User=root
+ExecStart=/usr/bin/ptal-init start
+ExecStop=/usr/bin/ptal-init stop
+
+[Install]
+WantedBy=multi-user.target
+

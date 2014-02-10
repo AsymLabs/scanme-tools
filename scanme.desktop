@@ -1,0 +1,10 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=ScanMe
+Comment=Scan a document with a click on Unix/Linux.
+Exec=/usr/local/bin/scanme
+Icon=/usr/share/pixmaps/scanme.svg
+Terminal=true
+Type=Application
+Categories=Multimedia;Office;
+

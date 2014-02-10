@@ -1,0 +1,476 @@
+#!/usr/bin/env bash
+
+# 'scanme' is a wrapper for scanning documents with the HP1220AIO
+# scanner.  Uses the HPLIP and HPOJ drivers. Many of the below also
+# depend upon Ghostscript.
+#
+# Note that should another printer driver be used, changes will be
+# required for the array 'packages' under section 'VARIABLES'. This
+# array contains the means of verifying dependencies, and it is used
+# by function 'check_deps'.  Also the device may change, to get the
+# correct device, do 'hp-check -t' and use the device beginning with
+# 'hpoj:mlc:' for 'device' under section ENVIRONMENT.
+#
+
+# Note that we use 'yad' instead of 'zenity' for GUI goodness. Also Bash, sed
+# and awk are/may be used.
+
+# Dependencies:
+#
+#   awk           (awk)
+#   sed           (sed)
+#   mktemp        (mktemp)          sometimes mktemp is not available.
+#   yad           (yad)             instead of Zenity,  advantageous.
+#   cups          (cupstestppd)
+#   sane          (scanimage)
+#   hplip         (hp-check)        this is printer/scanner specific.
+#   hpoj          (ptal-devid)      this is printer/scanner specific.
+#   tiff2pdf      (tiff2pdf)
+#   ghostscript   (gs)
+#   evince        (evince)
+
+# No Warranty implied or expressed.  See License terms contained in
+# directory. Copyright Applied Numerics Ltd, United Kingdom, 2014.
+
+# Version 0.55 : Last edited 2014-02-10 : G R Summers
+
+# ENVIRONMENT
+
+# Set this after scanner is installed.
+readonly device='hpoj:mlc:usb:HP_LaserJet_1220'
+
+# Do not alter these.  Ever.
+readonly name='ScanMe'
+readonly format='tiff'
+readonly imagetime="$(date +%s)"
+readonly imageroot="$HOME"/ScanMe-Work
+readonly imagetemp="$(mktemp)"
+readonly scanmepng='/usr/share/pixmaps/scanme.png'
+readonly scanmesvg='/usr/share/pixmaps/scanme.svg'
+
+# VARIABLES
+
+action='0'
+imagecnt='0'
+imagename="$name"-"$imagetime"
+imageextn=-"$(printf '%04d' $imagecnt)"."$format"
+imagepath="$imageroot"/"${imagename}${imageextn}"
+pdfpath="${imagepath%.*}".pdf
+
+# default  : lower quality but small file size.
+# ebook    : intermediate quiality and file size.
+# prepress : best quality but larger file size.
+pdfsetting='ebook'
+
+declare -A packages
+packages[awk]='awk'
+packages[sed]='sed'
+packages[mktemp]='mktemp'
+packages[yad]='yad'
+packages[cups]='cupstestppd'
+packages[sane]='scanimage'
+packages[hplip]='hp-check'
+packages[hpoj]='ptal-devid'
+packages[tiff2pdf]='tiff2pdf'
+packages[ghostscript]='gs'
+
+# viewer list - will select first viewer available.
+viewers=(
+acroread
+evince
+xpdf
+gv
+)
+
+# PDF document attributes.
+pdf_author="Image scanned by ScanMe"
+pdf_title="Image scanned by Scanme"
+pdf_subject="Image scanned by ScanMe"
+pdf_keys="scan pdf ScanMe"
+
+# FUNCTIONS
+
+## log 'message' [die|pause] [err_code]
+
+# Log a message with two optional arguments.
+function log(){
+local state='OK'
+local code='0'
+if [[ -n "$2" ]]
+then
+  state="$(echo "$2" | tr '[a-z]' '[A-Z]' )"
+fi
+if [[ -n $3 ]]
+then
+  code=$3
+fi
+case "$state" in
+  'DIE')
+    echo "$1 ..." 1>&2 &&
+      sleep 3
+    exit $code
+    ;;
+  'PAUSE')
+    echo "$1 ..." 1>&2
+    sleep 3
+    ;;
+  *)
+    echo "$1 ..." 1>&2
+    ;;
+esac
+}
+
+## clean_up
+
+# Clean up any files and exit appropriately.
+function clean_up(){
+
+# Remove temp files.
+if [[ -f "$imagetemp" ]]
+then
+  rm -f "$imagetemp" &>/dev/null
+fi
+
+# Scans must be non-zero size.
+if [[ -f "$imagepath" ]]
+then
+  if [[ ! -s "$imagepath" ]]
+  then
+    rm -f "$imagepath" &>/dev/null
+    log 'No scanned document was created'
+    yad \
+      --borders=15 \
+      --width=450 \
+      --justify=fill \
+      --image="dialog-error" \
+      --button="gtk-close:1" \
+      --title="$name: Failure" \
+      --text "No scanned document was created. Could be a cancelled transaction, an empty feeder, a badly placed document or a scanner with no power." \
+      2>/dev/null
+    log "Execution of '$name' has failed, exiting" pause
+  else
+    log "Execution of '$name' has completed, exiting" pause
+  fi
+fi
+}
+
+## check_deps
+
+# Check dependencies by hashing them.
+function check_deps(){
+for package in ${!packages[@]}
+do
+  if ! hash "${packages[$package]}" &>/dev/null
+  then
+    log "Package '$package' is not installed" die 1
+  fi
+done
+}
+
+## check_path
+
+# Check that the destination directory exists.
+function check_path(){
+if [[ ! -d "$imageroot" ]]
+then
+  log "Creating directory '$imageroot'" &&
+    mkdir "$imageroot" &>/dev/null &&
+    log "Created directory successfully" ||
+    log "Could not create directory" die 1
+fi
+}
+
+# wait_file 'file_path'
+
+# wait_file 'file_path' : waits for a file to be created, max 5 secs.
+function wait_file(){
+local count=0     # starting count.
+local max=5       # max seconds.
+while (( count < max ))
+do
+  if [[ -f "$1" ]]
+  then
+    return 0
+  fi
+  sleep 1
+  ((++count))
+done
+return 1
+}
+
+## set_attrs
+
+# Use yad dialogs to set the image prefix or use default.
+function set_attrs(){
+local cache
+local fmcache
+fmcache="$( yad \
+  --form \
+  --borders=15 \
+  --buttons-layout="spread" \
+  --button="Multiple:3" \
+  --button="Single:2" \
+  --button="Single View:1" \
+  --button="Exit:0" \
+  --field "File Name" \
+  --field "Author" \
+  --field "Title" \
+  --field "Subject" \
+  --field "Keyword(s)" \
+  "$imagename" \
+  "$pdf_author" \
+  "$pdf_title" \
+  "$pdf_subject" \
+  "$pdf_keys" \
+  --window-icon="$scanmepng" \
+  --title "$name: File and PDF Attributes" \
+  --width 450 \
+  2>/dev/null
+)"
+action=$?
+if [[ $action == 0 ]]
+then
+  log "Cancelled scanning (user termination)" die 1
+fi
+
+# set imagename.
+cache="$( echo "$fmcache" | awk 'BEGIN { FS="|" } { print $1 }' )"
+if [[ -n "$cache" && "$cache" != "$imagename" ]]
+then
+  imagename=$cache-"$imagetime"
+  imageextn=-"$(printf '%04d' $imagecnt)"."$format"
+  imagepath="$imageroot"/"${imagename}${imageextn}"
+  pdfpath="${imagepath%.*}".pdf
+fi
+
+# set pdf_author
+cache="$( echo "$fmcache" | awk 'BEGIN { FS="|" } { print $2 }' )"
+if [[ -n "$cache" ]]
+then
+  pdf_author="$cache"
+fi
+
+# set pdf_title
+cache="$( echo "$fmcache" | awk 'BEGIN { FS="|" } { print $3 }' )"
+if [[ -n "$cache" ]]
+then
+  pdf_title="$cache"
+fi
+
+# set pdf_subject
+cache="$( echo "$fmcache" | awk 'BEGIN { FS="|" } { print $4 }' )"
+if [[ -n "$cache" ]]
+then
+  pdf_subject="$cache"
+fi
+
+# set pdf_keys
+cache="$( echo "$fmcache" | awk 'BEGIN { FS="|" } { print $5 }' )"
+if [[ -n "$cache" ]]
+then
+  pdf_keys="$cache"
+fi
+
+log "Full image path is '$imagepath'"
+log "Document author is '$pdf_author'"
+log "Document title is '$pdf_title'"
+log "Document subject is '$pdf_subject'"
+log "Document key words are '$pdf_keys'"
+}
+
+## next_image_path
+
+# make a new image string based upon imagecnt.
+function next_image_path(){
+
+(( ++imagecnt ))
+imageextn=-"$(printf '%04d' $imagecnt)"."$format"
+imagepath="$imageroot"/"${imagename}${imageextn}"
+pdfpath="${imagepath%.*}".pdf
+
+}
+
+## scan_image
+
+# Ensure the scanner is ready and then scan the image.
+function scan_image(){
+yad \
+  --borders=15 \
+  --justify=fill \
+  --image="dialog-question" \
+  --button="gtk-ok:0" \
+  --button="gtk-close:1" \
+  --title="$name: Last Check and Go" \
+  --text "Are document(s) in the feeder and is the scanner ready?" \
+  2>/dev/null
+if [[ $? != 0  ]]
+then
+  log "Cancelled scanning (user termination)" die 1
+else
+
+  # 1. Scanimage process.
+  log "Begin scanning '$imagepath'" &&
+    scanimage \
+    -p \
+    --device "$device" \
+    --format="$format" \
+    -l 0 \
+    -t 0 \
+    -x 215 \
+    -y 297 \
+    --resolution 150 \
+    2>/dev/null | \
+
+  # 2. tee to file and progress meter.
+  tee "$imagepath" | \
+    yad \
+    --progress \
+    --borders=15 \
+    --pulsate \
+    --title="$name: Scanning Progress" \
+    --text="Scanning to $imagepath" \
+    --width=450 \
+    --auto-close \
+    2>/dev/null &&
+
+  # 3. Check the failure states.
+  for result in "${PIPESTATUS[@]}"
+  do
+    if (( $result )) # true if non-zero.
+    then
+      log "Failed scanning (scanimage failure)" die 1
+    fi
+  done
+  log "Finished scanning '$imagepath'"
+
+fi
+}
+
+## post_process
+
+# Post process files, convert to pdf and optimize file size.
+function post_process(){
+if [[ -f "$imagepath" && -s "$imagepath" ]]
+then
+
+  # 1. Convert tiff to pdf
+  log "Converting tiff to raw A4 pdf" &&
+    tiff2pdf \
+    -z "$imagepath" \
+    -o "$pdfpath" \
+    -p A4 \
+    -a "$pdf_author" \
+    -t "$pdf_title" \
+    -s "$pdf_subject" \
+    -k "$pdf_keys" &&
+
+  # 2. Optimize pdf.
+  log "Optimizing raw pdf with Ghostscript" &&
+    gs \
+    -q \
+    -dUseCIEColor \
+    -dPDFFitPage \
+    -dPDFSETTINGS=/"$pdfsetting" \
+    -sPAPERSIZE=a4 \
+    -sDEVICE=pdfwrite \
+    -o "$imagetemp" \
+    "$pdfpath" 2>/dev/null &&
+
+  # 3. Copy the optimized pdf.
+  log "Creating file '$pdfpath'" &&
+    mv "$imagetemp" "$pdfpath" &>/dev/null &&
+    wait_file "$pdfpath" ||
+    log "Could not create '$pdfpath'" die 1
+fi
+}
+
+# view_pdf
+
+# view_pdf : view the pdf with a listed viewer.
+function view_pdf(){
+for viewer in ${viewers[@]}
+do
+  if hash $viewer
+  then
+    log "Viewing file '$pdfpath'"
+    $viewer "$pdfpath" &>/dev/null ||
+      log "Could not open a viewer for '$pdfpath'" die 1
+    break
+  fi
+done
+}
+
+## get_action 'action'
+
+function get_action(){
+# Command line options.
+case "$action" in
+  '3') # multiple pages no view.
+    log "Invoking multiple image scans without view"
+
+    while true
+    do
+      scan_image
+      post_process
+      next_image_path
+    done
+
+    ;;
+  '2') # one page plus view.
+    log "Invoking single image scan with view"
+    scan_image
+    post_process
+    view_pdf
+    ;;
+  *) # single scan no view is the default.
+    log "Invoking single image scan without view"
+    scan_image
+    post_process
+    ;;
+esac
+}
+
+# MAIN
+
+# Preliminaries
+for sgnl in EXIT INT QUIT TERM HUP
+do
+  trap "clean_up; [[ $sgnl == EXIT ]] || kill -$sgnl $$" $sgnl
+done
+check_deps
+check_path
+
+# Command line options.
+case "$1" in
+  '-m'|'--multi') # multiple pages no view.
+    log "Invoking multiple image scans without view"
+
+    while true
+    do
+      scan_image
+      post_process
+      next_image_path
+    done
+
+    ;;
+  '-v'|'--view') # one page plus view.
+    log "Invoking single image scan with view"
+    scan_image
+    post_process
+    view_pdf
+    ;;
+  '-s'|'--single') # one page no view.
+    log "Invoking single image scan without view"
+    scan_image
+    post_process
+    ;;
+  '-h'|'--help') # help option only.
+    log "Usage: $0 [-s|--single|-m|--multi|-v|--view|-h|--help]"
+    ;;
+  *) # get action from attributes.
+    set_attrs
+    get_action
+    ;;
+esac
+
+# end scanme
