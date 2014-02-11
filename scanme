@@ -17,8 +17,8 @@
 
 # Dependencies:
 #
-#   awk           (awk)
-#   sed           (sed)
+#   gawk          (awk)
+#   coreutils     (sed)
 #   coreutils     (mktemp)          sometimes mktemp is not available.
 #   yad           (yad)             instead of Zenity,  advantageous.
 #   cups          (cupstestppd)
@@ -32,14 +32,29 @@
 # No Warranty implied or expressed.  See License terms contained in
 # directory. Copyright Applied Numerics Ltd, United Kingdom, 2014.
 
-# Version 0.55 : Last edited 2014-02-10 : G R Summers
+# Version 0.60 : Last edited 2014-02-11 : G R Summers
 
 # ENVIRONMENT
 
-# Set this after scanner is installed.
+# Set this after the scanner is installed.
 readonly device='hpoj:mlc:usb:HP_LaserJet_1220'
 
-# Do not alter these.  Ever.
+# Set the quality and size of PDF output.
+# default  : lower quality but small file size.
+# ebook    : intermediate quiality and file size.
+# prepress : best quality but larger file size.
+readonly pdfsetting='ebook'
+
+# PDF viewers : we select first viewer available. While this should
+# meet most Linux/Unix systems needs, add or reorder if desired.
+readonly viewers=(
+acroread
+evince
+xpdf
+gv
+)
+
+# Do not alter anything below here.  Ever.  OK?
 readonly name='ScanMe'
 readonly format='tiff'
 readonly imagetime="$(date +%s)"
@@ -57,14 +72,9 @@ imageextn=-"$(printf '%04d' $imagecnt)"."$format"
 imagepath="$imageroot"/"${imagename}${imageextn}"
 pdfpath="${imagepath%.*}".pdf
 
-# default  : lower quality but small file size.
-# ebook    : intermediate quiality and file size.
-# prepress : best quality but larger file size.
-pdfsetting='ebook'
-
 declare -A packages
-packages[awk]='awk'
-packages[sed]='sed'
+packages[gawk]='awk'
+packages[coreutils]='sed'
 packages[coreutils]='mktemp'
 packages[yad]='yad'
 packages[cups]='cupstestppd'
@@ -73,14 +83,6 @@ packages[hplip]='hp-check'
 packages[hpoj]='ptal-devid'
 packages[libtiff]='tiff2pdf'
 packages[ghostscript]='gs'
-
-# viewer list - will select first viewer available.
-viewers=(
-acroread
-evince
-xpdf
-gv
-)
 
 # PDF document attributes.
 pdf_author="Image scanned by ScanMe"
@@ -298,10 +300,10 @@ yad \
   --borders=20 \
   --justify=fill \
   --image="dialog-warning" \
-  --button="Continue:1" \
-  --button="Finish:0" \
+  --button="Scan Me:1" \
+  --button="Cancel:0" \
   --title="$name: Get Ready" \
-  --text "Get ready to scan. Check that document(s) are placed in the feeder and the scanner is ready." \
+  --text "Get ready to scan. Check that document(s) are placed in the feeder and that the device is ready." \
   2>/dev/null
 if [[ $? == 0  ]]
 then

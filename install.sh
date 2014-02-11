@@ -26,7 +26,7 @@
 # Great Britain, 2014.  A warrantee is neither implied nor expressed.  Use
 # at your own risk.  See LICENSE file for terms and conditions of usage.
 
-# Version 0.21 : Last edited by G R Summers : 2014-02-10
+# Version 0.21 : Last edited by G R Summers : 2014-02-11
 
 ##  ENVIRONMENT
 
@@ -45,11 +45,16 @@ paths['scansh-grn.png']='/usr/share/pixmaps'
 paths['scansh-red.svg']='/usr/share/pixmaps'
 paths['scansh-red.png']='/usr/share/pixmaps'
 
-# Link to image of choice.
-readonly scanmepnglink='/usr/share/pixmaps/scanme.png'
+# There are options for these (see base directory):
+# scansh.png/.svg      : grey
+# scansh-red.png/.svg  : red
+# scansh-grn.png/.svg  : green
 readonly scanmepngfile='/usr/share/pixmaps/scansh-red.png'
-readonly scanmesvglink='/usr/share/pixmaps/scanme.svg'
 readonly scanmesvgfile='/usr/share/pixmaps/scansh-red.svg'
+
+# Do not change anything below here. Ever. Non?
+readonly scanmepnglink='/usr/share/pixmaps/scanme.png'
+readonly scanmesvglink='/usr/share/pixmaps/scanme.svg'
 
 ## DEPENDENCIES
 
@@ -58,8 +63,8 @@ readonly scanmesvgfile='/usr/share/pixmaps/scansh-red.svg'
 
 # Dependencies:
 #
-#   awk           (awk)
-#   sed           (sed)
+#   gawk          (awk)
+#   coreutils     (sed)
 #   coreutils     (mktemp)          sometimes mktemp is not available.
 #   yad           (yad)             instead of Zenity,  advantageous.
 #   cups          (cupstestppd)
@@ -71,8 +76,8 @@ readonly scanmesvgfile='/usr/share/pixmaps/scansh-red.svg'
 #   evince        (evince)
 
 declare -A packages
-packages[awk]='awk'
-packages[sed]='sed'
+packages[gawk]='awk'
+packages[coreutils]='sed'
 packages[coreutils]='mktemp'
 packages[yad]='yad'
 packages[cups]='cupstestppd'
