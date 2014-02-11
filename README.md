@@ -56,7 +56,7 @@ At the time of writing (February 2014), the HP configuration tools will require 
 
 This is systemd compatible, some systems may still use the older sysinit but eventually all sysinit will be replaced by systemd.  Red Hat, Gentoo and CentOS may still use sysinit, but just about all other major distributions use systemd since about 2012.  Note that HPOJ provides the ptal server and installs sysinit scripts by default.  
 
-There are certain configuration that are documented within, and at the top of, the files `install.sh` and `scanme`.  You might want to check these just to see if there is anything of interest to you.  For example, there are three sets of svg and png icons: red (default), green and grey.  Also there is a trade off between the size and quality of the pdf conversion, the default setting `ebook` is mid-range, but if you do a lot of printed work rather than email transmission you may want to set this to 'prepress'.  The setting `screen` produces very small files, but the printed quality is not good.
+There are certain configurations that are documented within, and at the top of, the files `install.sh` and `scanme`.  You might want to check these just to see if there is anything of interest to you.  For example, there are three sets of svg and png icons: red (default), green and grey.  Also there is a trade off between the size and quality of the pdf conversion, the default setting `ebook` is mid-range, but if you do a lot of printed work rather than email transmission you may want to set this to `prepress`.  The setting `screen` produces very small files, but the printed quality is not so good.
 
 Installation
 ------------
